@@ -1,0 +1,5 @@
+package simplejdbc;
+
+class SimpleJdbcTest {
+
+}
