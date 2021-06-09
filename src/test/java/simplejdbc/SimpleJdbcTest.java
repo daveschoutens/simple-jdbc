@@ -19,6 +19,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 class SimpleJdbcTest {
+  
+  // TODO: QueryResultSet row-based?
+  // TODO: Transactions
+  // TODO: QueryBuilder, etc
 
   private SimpleJdbc subject;
   private DataSource dataSource;
@@ -195,5 +199,10 @@ class SimpleJdbcTest {
                     ImmutableMap.of(),
                     qr -> qr.toResultSet().getInt("foo")));
     assertThat(ex).hasCauseThat().hasMessageThat().isEqualTo(errorMessage);
+  }
+  
+  @Test
+  void select_canReuseConnection() {
+    subject.select(connection, "some query", ImmutableMap.of(), qr -> null);
   }
 }

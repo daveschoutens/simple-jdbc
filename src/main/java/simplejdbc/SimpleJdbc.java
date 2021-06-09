@@ -19,14 +19,25 @@ public class SimpleJdbc {
     this.columnExtractors = columnExtractors;
   }
 
-  public <T> T select(
+  <T> T select(
       DataSource dataSource,
       String sql,
       Map<String, Object> bindings,
       QueryResultExtractor<T> extractor) {
+    try (Connection conn = dataSource.getConnection()) {
+      return select(conn, sql, bindings, extractor);
+    } catch (SQLException ex) {
+      throw new SimpleJdbcException(ex);
+    }
+  }
+
+  <T> T select(
+      Connection conn,
+      String sql,
+      Map<String, Object> bindings,
+      QueryResultExtractor<T> extractor) {
     ParameterizedQuery pq = ParameterizedQuery.from(sql, bindings);
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
+    try (PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
       applyParameters(stmt, pq.getParameters());
       try (ResultSet resultSet = stmt.executeQuery()) {
         return extractor.extract(QueryResult.from(resultSet, columnExtractors));
@@ -36,10 +47,17 @@ public class SimpleJdbc {
     }
   }
 
-  public int update(DataSource dataSource, String sql, Map<String, Object> bindings) {
+  int update(DataSource dataSource, String sql, Map<String, Object> bindings) {
+    try (Connection conn = dataSource.getConnection()) {
+      return update(conn, sql, bindings);
+    } catch (SQLException ex) {
+      throw new SimpleJdbcException(ex);
+    }
+  }
+
+  int update(Connection conn, String sql, Map<String, Object> bindings) {
     ParameterizedQuery pq = ParameterizedQuery.from(sql, bindings);
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
+    try (PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
       applyParameters(stmt, pq.getParameters());
       return stmt.executeUpdate();
     } catch (SQLException ex) {
@@ -47,8 +65,15 @@ public class SimpleJdbc {
     }
   }
 
-  public int[] batchedUpdate(
-      DataSource dataSource, String sql, List<Map<String, Object>> bindingsBatch) {
+  int[] batchedUpdate(DataSource dataSource, String sql, List<Map<String, Object>> bindingsBatch) {
+    try (Connection conn = dataSource.getConnection()) {
+      return batchedUpdate(conn, sql, bindingsBatch);
+    } catch (SQLException ex) {
+      throw new SimpleJdbcException(ex);
+    }
+  }
+
+  int[] batchedUpdate(Connection conn, String sql, List<Map<String, Object>> bindingsBatch) {
     if (bindingsBatch.isEmpty()) {
       throw new SimpleJdbcException("Empty batch");
     }
@@ -58,8 +83,7 @@ public class SimpleJdbc {
             .collect(Collectors.toList());
     validateBatch(pqs);
     String parameterizedQuery = pqs.get(0).getSql();
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(parameterizedQuery)) {
+    try (PreparedStatement stmt = conn.prepareStatement(parameterizedQuery)) {
       for (ParameterizedQuery pq : pqs) {
         applyParameters(stmt, pq.getParameters());
         stmt.addBatch();
