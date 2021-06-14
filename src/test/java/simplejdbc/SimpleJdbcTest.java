@@ -25,14 +25,6 @@ import simplejdbc.SimpleJdbc.QueryResultExtractor;
 
 abstract class SimpleJdbcTest {
 
-  // TODO: Transactions - detect scoping issue (using outer SimpleJdbc)
-  // TODO: Transactions - prevent 'nested' transactions, because they are bullsh*t anyway
-  // TODO: Transactions - isolation level
-
-  // TODO: QueryResultSet row-based?
-  // TODO: Convenient use of escape hatch
-  //       (when using native ResultSet, don't have to deal with checked exceptions)
-
   protected Connection connection;
   private PreparedStatement preparedStatement;
   private ResultSet resultSet;
