@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
@@ -52,6 +53,39 @@ public abstract class SimpleJdbc {
     return new BatchedUpdateBuilder(this, sql);
   }
 
+  public void doTransactionally(JdbcConsumer transactionalFn) {
+    getTransactionally(
+        simpleJdbc -> {
+          transactionalFn.accept(simpleJdbc);
+          return null;
+        });
+  }
+
+  public <T> T getTransactionally(JdbcFunction<T> transactionalFn) {
+    return withConnection(conn -> getTransactionally(conn, transactionalFn));
+  }
+
+  private <T> T getTransactionally(Connection conn, JdbcFunction<T> transactionalFn) {
+    try {
+      boolean autoCommit = conn.getAutoCommit();
+      conn.setAutoCommit(false);
+      try {
+        T result = transactionalFn.apply(SimpleJdbc.using(conn));
+        conn.commit();
+        return result;
+      } catch (Throwable ex) {
+        conn.rollback();
+        throw ex;
+      } finally {
+        conn.setAutoCommit(autoCommit);
+      }
+    } catch (SQLException ex) {
+      throw new SimpleJdbcException(ex);
+    }
+  }
+
+  abstract <T> T withConnection(Function<Connection, T> fn);
+
   abstract <T> T query(String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor);
 
   abstract int update(String sql, Map<String, ?> bindings);
@@ -70,22 +104,22 @@ public abstract class SimpleJdbc {
     }
 
     @Override
-    public <T> T query(
-        String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
-      return withNewConnection(conn -> query(conn, sql, bindings, extractor));
+    public <T> T query(String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
+      return withConnection(conn -> query(conn, sql, bindings, extractor));
     }
 
     @Override
     public int update(String sql, Map<String, ?> bindings) {
-      return withNewConnection(conn -> update(conn, sql, bindings));
+      return withConnection(conn -> update(conn, sql, bindings));
     }
 
     @Override
     public int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings) {
-      return withNewConnection(conn -> batchedUpdate(conn, sql, batchedBindings));
+      return withConnection(conn -> batchedUpdate(conn, sql, batchedBindings));
     }
 
-    private <T> T withNewConnection(Function<Connection, T> fn) {
+    @Override
+    <T> T withConnection(Function<Connection, T> fn) {
       try (Connection conn = dataSource.getConnection()) {
         return fn.apply(conn);
       } catch (SQLException ex) {
@@ -106,8 +140,7 @@ public abstract class SimpleJdbc {
     }
 
     @Override
-    public <T> T query(
-        String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
+    public <T> T query(String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
       return query(connection, sql, bindings, extractor);
     }
 
@@ -120,13 +153,15 @@ public abstract class SimpleJdbc {
     public int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings) {
       return batchedUpdate(connection, sql, batchedBindings);
     }
+
+    @Override
+    <T> T withConnection(Function<Connection, T> fn) {
+      return fn.apply(connection);
+    }
   }
 
   <T> T query(
-      Connection conn,
-      String sql,
-      Map<String, ?> bindings,
-      QueryResultExtractor<T> extractor) {
+      Connection conn, String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
     ParameterizedQuery pq = ParameterizedQuery.from(sql, bindings);
     try (PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
       applyParameters(stmt, pq.getParameters());
@@ -188,5 +223,13 @@ public abstract class SimpleJdbc {
 
   public interface QueryResultExtractor<T> {
     T extract(QueryResult queryResult) throws SQLException;
+  }
+
+  public interface JdbcConsumer {
+    void accept(SimpleJdbc jdbc) throws SQLException;
+  }
+
+  public interface JdbcFunction<T> {
+    T apply(SimpleJdbc jdbc) throws SQLException;
   }
 }

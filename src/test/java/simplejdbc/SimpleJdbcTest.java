@@ -25,8 +25,13 @@ import simplejdbc.SimpleJdbc.QueryResultExtractor;
 
 abstract class SimpleJdbcTest {
 
+  // TODO: Transactions - detect scoping issue (using outer SimpleJdbc)
+  // TODO: Transactions - prevent 'nested' transactions, because they are bullsh*t anyway
+  // TODO: Transactions - isolation level
+
   // TODO: QueryResultSet row-based?
-  // TODO: Transactions
+  // TODO: Convenient use of escape hatch
+  //       (when using native ResultSet, don't have to deal with checked exceptions)
 
   protected Connection connection;
   private PreparedStatement preparedStatement;
@@ -452,6 +457,127 @@ abstract class SimpleJdbcTest {
     void batchedUpdate_canReuseConnection() throws SQLException {
       subject.batchedUpdate("some query", ImmutableList.of(ImmutableMap.of()));
       verify(connection, times(0)).close();
+    }
+  }
+
+  @Nested
+  class TransactionalTests {
+    @BeforeEach
+    void setup() throws SQLException {
+      when(connection.getAutoCommit()).thenReturn(true);
+    }
+
+    @Test
+    void doTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
+      getSubject().doTransactionally(jdbc -> {});
+
+      verify(connection).setAutoCommit(false);
+      verify(connection).commit();
+      verify(connection).setAutoCommit(true);
+    }
+
+    @Test
+    void doTransactionally_rollbackOnException_andResetsAutoCommit() throws SQLException {
+      assertThrows(
+          RuntimeException.class,
+          () ->
+              getSubject()
+                  .doTransactionally(
+                      jdbc -> {
+                        throw new RuntimeException("test");
+                      }));
+
+      verify(connection).setAutoCommit(false);
+      verify(connection).rollback();
+      verify(connection).setAutoCommit(true);
+    }
+
+    @Test
+    void doTransactionally_whenNonSQLExceptionThrown_emitsUnwrapped() {
+      RuntimeException ex =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  getSubject()
+                      .doTransactionally(
+                          jdbc -> {
+                            throw new RuntimeException("test");
+                          }));
+      assertThat(ex).hasCauseThat().isNull();
+      assertThat(ex).hasMessageThat().isEqualTo("test");
+    }
+
+    @Test
+    void doTransactionally_whenSQLExceptionThrown_emitsWrapped() {
+      RuntimeException ex =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  getSubject()
+                      .doTransactionally(
+                          jdbc -> {
+                            throw new SQLException("test");
+                          }));
+      assertThat(ex).isNotInstanceOf(SQLException.class);
+      assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
+      assertThat(ex).hasMessageThat().contains("test");
+    }
+
+    @Test
+    void getTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
+      String result = getSubject().getTransactionally(jdbc -> "result");
+
+      assertThat(result).isEqualTo("result");
+      verify(connection).setAutoCommit(false);
+      verify(connection).commit();
+      verify(connection).setAutoCommit(true);
+    }
+
+    @Test
+    void getTransactionally_rollbackOnException_andResetsAutoCommit() throws SQLException {
+      assertThrows(
+          RuntimeException.class,
+          () ->
+              getSubject()
+                  .getTransactionally(
+                      jdbc -> {
+                        throw new RuntimeException("test");
+                      }));
+
+      verify(connection).setAutoCommit(false);
+      verify(connection).rollback();
+      verify(connection).setAutoCommit(true);
+    }
+
+    @Test
+    void getTransactionally_whenNonSQLExceptionThrown_emitsUnwrapped() {
+      RuntimeException ex =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  getSubject()
+                      .getTransactionally(
+                          jdbc -> {
+                            throw new RuntimeException("test");
+                          }));
+      assertThat(ex).hasCauseThat().isNull();
+      assertThat(ex).hasMessageThat().isEqualTo("test");
+    }
+
+    @Test
+    void getTransactionally_whenSQLExceptionThrown_emitsWrapped() {
+      RuntimeException ex =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  getSubject()
+                      .getTransactionally(
+                          jdbc -> {
+                            throw new SQLException("test");
+                          }));
+      assertThat(ex).isNotInstanceOf(SQLException.class);
+      assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
+      assertThat(ex).hasMessageThat().contains("test");
     }
   }
 }
