@@ -15,18 +15,6 @@ public abstract class SimpleJdbc {
   private final ParameterSetters parameterSetters;
   private final ColumnExtractors columnExtractors;
 
-  private SimpleJdbc(ParameterSetters parameterSetters, ColumnExtractors columnExtractors) {
-    this.parameterSetters = parameterSetters;
-    this.columnExtractors = columnExtractors;
-  }
-
-  public abstract <T> T select(
-      String sql, Map<String, Object> bindings, QueryResultExtractor<T> extractor);
-
-  public abstract int update(String sql, Map<String, Object> bindings);
-
-  public abstract int[] batchedUpdate(String sql, List<Map<String, Object>> batchedBindings);
-
   public static SimpleJdbc using(DataSource dataSource) {
     return new DataSourceSimpleJdbc(
         dataSource, ParameterSetters.defaults(), ColumnExtractors.defaults());
@@ -47,6 +35,29 @@ public abstract class SimpleJdbc {
     return new SingleConnectionSimpleJdbc(connection, parameterSetters, columnExtractors);
   }
 
+  private SimpleJdbc(ParameterSetters parameterSetters, ColumnExtractors columnExtractors) {
+    this.parameterSetters = parameterSetters;
+    this.columnExtractors = columnExtractors;
+  }
+
+  public QueryBuilder query(String sql) {
+    return new QueryBuilder(this, sql);
+  }
+
+  public UpdateBuilder update(String sql) {
+    return new UpdateBuilder(this, sql);
+  }
+
+  public BatchedUpdateBuilder batchedUpdate(String sql) {
+    return new BatchedUpdateBuilder(this, sql);
+  }
+
+  abstract <T> T query(String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor);
+
+  abstract int update(String sql, Map<String, ?> bindings);
+
+  abstract int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings);
+
   private static class DataSourceSimpleJdbc extends SimpleJdbc {
     private final DataSource dataSource;
 
@@ -59,18 +70,18 @@ public abstract class SimpleJdbc {
     }
 
     @Override
-    public <T> T select(
-        String sql, Map<String, Object> bindings, QueryResultExtractor<T> extractor) {
-      return withNewConnection(conn -> select(conn, sql, bindings, extractor));
+    public <T> T query(
+        String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
+      return withNewConnection(conn -> query(conn, sql, bindings, extractor));
     }
 
     @Override
-    public int update(String sql, Map<String, Object> bindings) {
+    public int update(String sql, Map<String, ?> bindings) {
       return withNewConnection(conn -> update(conn, sql, bindings));
     }
 
     @Override
-    public int[] batchedUpdate(String sql, List<Map<String, Object>> batchedBindings) {
+    public int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings) {
       return withNewConnection(conn -> batchedUpdate(conn, sql, batchedBindings));
     }
 
@@ -95,26 +106,26 @@ public abstract class SimpleJdbc {
     }
 
     @Override
-    public <T> T select(
-        String sql, Map<String, Object> bindings, QueryResultExtractor<T> extractor) {
-      return select(connection, sql, bindings, extractor);
+    public <T> T query(
+        String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor) {
+      return query(connection, sql, bindings, extractor);
     }
 
     @Override
-    public int update(String sql, Map<String, Object> bindings) {
+    public int update(String sql, Map<String, ?> bindings) {
       return update(connection, sql, bindings);
     }
 
     @Override
-    public int[] batchedUpdate(String sql, List<Map<String, Object>> batchedBindings) {
+    public int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings) {
       return batchedUpdate(connection, sql, batchedBindings);
     }
   }
 
-  protected <T> T select(
+  <T> T query(
       Connection conn,
       String sql,
-      Map<String, Object> bindings,
+      Map<String, ?> bindings,
       QueryResultExtractor<T> extractor) {
     ParameterizedQuery pq = ParameterizedQuery.from(sql, bindings);
     try (PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
@@ -127,7 +138,7 @@ public abstract class SimpleJdbc {
     }
   }
 
-  protected int update(Connection conn, String sql, Map<String, Object> bindings) {
+  int update(Connection conn, String sql, Map<String, ?> bindings) {
     ParameterizedQuery pq = ParameterizedQuery.from(sql, bindings);
     try (PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
       applyParameters(stmt, pq.getParameters());
@@ -137,8 +148,7 @@ public abstract class SimpleJdbc {
     }
   }
 
-  protected int[] batchedUpdate(
-      Connection conn, String sql, List<Map<String, Object>> bindingsBatch) {
+  int[] batchedUpdate(Connection conn, String sql, List<Map<String, ?>> bindingsBatch) {
     if (bindingsBatch.isEmpty()) {
       throw new SimpleJdbcException("Empty batch");
     }

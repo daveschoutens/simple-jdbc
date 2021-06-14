@@ -14,7 +14,7 @@ public class ParameterizedQuery {
   private static final Pattern PARAM_REGEX = Pattern.compile("(?!\\B'[^']*):(\\w+)(?![^']*'\\B)");
 
   @SuppressWarnings("rawtypes")
-  static ParameterizedQuery from(String query, Map<String, Object> bindings) {
+  static ParameterizedQuery from(String query, Map<String, ?> bindings) {
     Objects.requireNonNull(query, "query is required, but was null");
     Objects.requireNonNull(bindings, "bindings required, but was null");
 

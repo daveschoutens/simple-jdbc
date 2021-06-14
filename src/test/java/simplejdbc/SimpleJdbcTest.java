@@ -13,16 +13,20 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import simplejdbc.SimpleJdbc.QueryResultExtractor;
 
 abstract class SimpleJdbcTest {
 
   // TODO: QueryResultSet row-based?
   // TODO: Transactions
-  // TODO: QueryBuilder, etc
 
   protected Connection connection;
   private PreparedStatement preparedStatement;
@@ -51,7 +55,7 @@ abstract class SimpleJdbcTest {
     SimpleJdbcException ex =
         assertThrows(
             SimpleJdbcException.class,
-            () -> getSubject().select("sql", ImmutableMap.of(), qr -> null));
+            () -> getSubject().query("sql", ImmutableMap.of(), qr -> null));
     assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
   }
 
@@ -99,7 +103,7 @@ abstract class SimpleJdbcTest {
 
   @Test
   void select_closesResources() throws SQLException {
-    getSubject().select("select 1", ImmutableMap.of(), qr -> null);
+    getSubject().query("select 1", ImmutableMap.of(), qr -> null);
 
     verify(resultSet).close();
     verify(preparedStatement).close();
@@ -122,7 +126,7 @@ abstract class SimpleJdbcTest {
   @Test
   void select_appliesParametersCorrectly() throws SQLException {
     getSubject()
-        .select(":foo :bar :baz", ImmutableMap.of("baz", 123, "bar", 456, "foo", 789), qr -> null);
+        .query(":foo :bar :baz", ImmutableMap.of("baz", 123, "bar", 456, "foo", 789), qr -> null);
 
     verify(preparedStatement).setInt(1, 789);
     verify(preparedStatement).setInt(2, 456);
@@ -165,7 +169,7 @@ abstract class SimpleJdbcTest {
 
     int returned =
         getSubject()
-            .select(
+            .query(
                 "select 1", ImmutableMap.of(), queryResult -> queryResult.getInteger("whatever"));
 
     assertThat(returned).isEqualTo(12345);
@@ -181,11 +185,204 @@ abstract class SimpleJdbcTest {
             SimpleJdbcException.class,
             () ->
                 getSubject()
-                    .select(
+                    .query(
                         "select 1 as foo",
                         ImmutableMap.of(),
                         qr -> qr.toResultSet().getInt("foo")));
     assertThat(ex).hasCauseThat().hasMessageThat().isEqualTo(errorMessage);
+  }
+
+  @Nested
+  @SuppressWarnings("unchecked")
+  class DSLTests {
+    private SimpleJdbc subject;
+
+    @BeforeEach
+    void setup() {
+      subject = Mockito.spy(getSubject());
+    }
+
+    @Nested
+    class QueryBuilderTest {
+      @Test
+      void bindAll_null_throws() {
+        assertThrows(NullPointerException.class, () -> subject.query("whatever").bindAll(null));
+      }
+
+      @Test
+      void select_withNullExtractor_throws() {
+        assertThrows(NullPointerException.class, () -> subject.query("whatever").select(null));
+      }
+
+      @Test
+      void bindAll_test() {
+        String sql = "some sql with :bind :variables";
+        ImmutableMap<String, Integer> bindings = ImmutableMap.of("bind", 123, "variables", 456);
+        QueryResultExtractor<Object> queryResultExtractor = qr -> null;
+        subject.query(sql).bindAll(bindings).select(queryResultExtractor);
+
+        assertQueryExecution(sql, bindings, queryResultExtractor);
+      }
+
+      @Test
+      void bind_test() {
+        String sql = "some sql with :bind :variables";
+        QueryResultExtractor<Object> queryResultExtractor = qr -> null;
+        subject.query(sql).bind("bind", 123).bind("variables", 456).select(queryResultExtractor);
+
+        assertQueryExecution(
+            sql, ImmutableMap.of("bind", 123, "variables", 456), queryResultExtractor);
+      }
+
+      @Test
+      private void assertQueryExecution(
+          String sql, Map<String, ?> bindings, QueryResultExtractor<?> queryResultExtractor) {
+        ArgumentCaptor<String> sqlArg = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, ?>> bindingsArg = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<QueryResultExtractor<?>> qrArg =
+            ArgumentCaptor.forClass(QueryResultExtractor.class);
+        verify(subject).query(sqlArg.capture(), bindingsArg.capture(), qrArg.capture());
+
+        assertThat(sqlArg.getValue()).isEqualTo(sql);
+        assertThat(bindingsArg.getValue()).isEqualTo(bindings);
+        assertThat(qrArg.getValue()).isEqualTo(queryResultExtractor);
+      }
+    }
+
+    @Nested
+    class UpdateBuilderTest {
+      @Test
+      void bindAll_null_throws() {
+        assertThrows(NullPointerException.class, () -> subject.update("whatever").bindAll(null));
+      }
+
+      @Test
+      void bindAll_test() {
+        String sql = "some sql with :bind :variables";
+        ImmutableMap<String, Integer> bindings = ImmutableMap.of("bind", 123, "variables", 456);
+        subject.update(sql).bindAll(bindings).execute();
+
+        assertUpdateExecution(sql, bindings);
+      }
+
+      @Test
+      void bind_test() {
+        String sql = "some sql with :bind :variables";
+        subject.update(sql).bind("bind", 123).bind("variables", 456).execute();
+
+        assertUpdateExecution(sql, ImmutableMap.of("bind", 123, "variables", 456));
+      }
+
+      private void assertUpdateExecution(String sql, Map<String, ?> bindings) {
+        ArgumentCaptor<String> sqlArg = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, ?>> bindingsArg = ArgumentCaptor.forClass(Map.class);
+        verify(subject).update(sqlArg.capture(), bindingsArg.capture());
+
+        assertThat(sqlArg.getValue()).isEqualTo(sql);
+        assertThat(bindingsArg.getValue()).isEqualTo(bindings);
+      }
+    }
+
+    @Nested
+    class BatchedUpdateBuilderTest {
+
+      @Test
+      void batchAdd_null_throws() {
+        assertThrows(
+            NullPointerException.class, () -> subject.batchedUpdate("whatever").batchAdd(null));
+      }
+
+      @Test
+      void batchAddAll_null_throws() {
+        assertThrows(
+            NullPointerException.class, () -> subject.batchedUpdate("whatever").batchAddAll(null));
+      }
+
+      @Test
+      void piecemeal_test() {
+        String sql = "some sql with :bind :variables";
+        subject
+            .batchedUpdate(sql)
+            .bind("bind", 123)
+            .bind("variables", 456)
+            .addBatch()
+            .bind("bind", 321)
+            .bind("variables", 654)
+            .addBatch()
+            .executeBatch();
+
+        assertBatchExecution(
+            sql,
+            ImmutableList.of(
+                ImmutableMap.of("bind", 123, "variables", 456),
+                ImmutableMap.of("bind", 321, "variables", 654)));
+      }
+
+      @Test
+      void batchAdd_test() {
+        String sql = "some sql with :bind :variables";
+        ImmutableMap<String, Integer> binding = ImmutableMap.of("bind", 321, "variables", 654);
+        subject
+            .batchedUpdate(sql)
+            .batchAdd(ImmutableMap.of("bind", 123, "variables", 456))
+            .batchAdd(binding)
+            .executeBatch();
+
+        assertBatchExecution(
+            sql,
+            ImmutableList.of(
+                ImmutableMap.of("bind", 123, "variables", 456),
+                ImmutableMap.of("bind", 321, "variables", 654)));
+      }
+
+      @Test
+      void batchAddAll_test() {
+        String sql = "some sql with :bind :variables";
+        subject
+            .batchedUpdate(sql)
+            .batchAddAll(
+                ImmutableList.of(
+                    ImmutableMap.of("bind", 123, "variables", 456),
+                    ImmutableMap.of("bind", 321, "variables", 654)))
+            .executeBatch();
+
+        assertBatchExecution(
+            sql,
+            ImmutableList.of(
+                ImmutableMap.of("bind", 123, "variables", 456),
+                ImmutableMap.of("bind", 321, "variables", 654)));
+      }
+
+      @Test
+      void mixed_test() {
+        String sql = "some sql with :bind :variables";
+        subject
+            .batchedUpdate(sql)
+            .batchAddAll(ImmutableList.of(ImmutableMap.of("bind", 123, "variables", 456)))
+            .batchAdd(ImmutableMap.of("bind", 321, "variables", 654))
+            .bind("bind", 789)
+            .bind("variables", 987)
+            .addBatch()
+            .executeBatch();
+
+        assertBatchExecution(
+            sql,
+            ImmutableList.of(
+                ImmutableMap.of("bind", 123, "variables", 456),
+                ImmutableMap.of("bind", 321, "variables", 654),
+                ImmutableMap.of("bind", 789, "variables", 987)));
+      }
+
+      private void assertBatchExecution(
+          String sql, ImmutableList<ImmutableMap<String, Integer>> batchedBindings) {
+        ArgumentCaptor<String> sqlArg = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<List<Map<String, ?>>> bindingsArg = ArgumentCaptor.forClass(List.class);
+        verify(subject).batchedUpdate(sqlArg.capture(), bindingsArg.capture());
+
+        assertThat(sqlArg.getValue()).isEqualTo(sql);
+        assertThat(bindingsArg.getValue()).isEqualTo(batchedBindings);
+      }
+    }
   }
 
   public static class DataSourceSimpleJdbcTest extends SimpleJdbcTest {
@@ -241,7 +438,7 @@ abstract class SimpleJdbcTest {
 
     @Test
     void select_canReuseConnection() throws SQLException {
-      subject.select("some query", ImmutableMap.of(), qr -> null);
+      subject.query("some query", ImmutableMap.of(), qr -> null);
       verify(connection, times(0)).close();
     }
 
