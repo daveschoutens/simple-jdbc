@@ -60,19 +60,19 @@ public abstract class SimpleJdbc {
     return InsertBuilder.get(this);
   }
 
-  public void doTransactionally(JdbcConsumer transactionalFn) {
-    getTransactionally(
+  public void transactionally(JdbcConsumer transactionalFn) {
+    transactionally(
         simpleJdbc -> {
           transactionalFn.accept(simpleJdbc);
           return null;
         });
   }
 
-  public <T> T getTransactionally(JdbcFunction<T> transactionalFn) {
-    return withConnection(conn -> getTransactionally(conn, transactionalFn));
+  public <T> T transactionally(JdbcFunction<T> transactionalFn) {
+    return withConnection(conn -> transactionally(conn, transactionalFn));
   }
 
-  private <T> T getTransactionally(Connection conn, JdbcFunction<T> transactionalFn) {
+  private <T> T transactionally(Connection conn, JdbcFunction<T> transactionalFn) {
     try {
       boolean autoCommit = conn.getAutoCommit();
       conn.setAutoCommit(false);
