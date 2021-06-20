@@ -19,5 +19,4 @@ Simple wrapper library for dealing with SQL-in-Java and JDBC. No dependencies, n
 # Maybe...
 
 1. QueryRowResult stream()
-2. SimpleInsert and SimpleUpdate (a departure from 'pure plain SQL', but aiming for 'simpler')
 3. SQL _script_ support (likely vendor-specific... if so, a no-go)
