@@ -59,7 +59,7 @@ public class ParameterizedQuery {
     return parameters;
   }
 
-  public static class MissingParameterBindingException extends RuntimeException {
+  public static class MissingParameterBindingException extends SimpleJdbcException {
     MissingParameterBindingException(String param) {
       super(String.format("no binding provided for parameter :%s", param));
     }

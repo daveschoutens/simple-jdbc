@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
@@ -45,12 +44,20 @@ public abstract class SimpleJdbc {
     return new QueryBuilder(this, sql);
   }
 
-  public UpdateBuilder update(String sql) {
-    return new UpdateBuilder(this, sql);
+  public StatementBuilder statement(String sql) {
+    return new StatementBuilder(this, sql);
   }
 
-  public BatchedUpdateBuilder batchedUpdate(String sql) {
-    return new BatchedUpdateBuilder(this, sql);
+  public StatementBatchBuilder batchStatement(String sql) {
+    return new StatementBatchBuilder(this, sql);
+  }
+
+  public UpdateBuilder.Update update() {
+    return UpdateBuilder.get(this);
+  }
+
+  public InsertBuilder.Insert insert() {
+    return InsertBuilder.get(this);
   }
 
   public void doTransactionally(JdbcConsumer transactionalFn) {
@@ -88,9 +95,9 @@ public abstract class SimpleJdbc {
 
   abstract <T> T query(String sql, Map<String, ?> bindings, QueryResultExtractor<T> extractor);
 
-  abstract int update(String sql, Map<String, ?> bindings);
+  abstract int statement(String sql, Map<String, ?> bindings);
 
-  abstract int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings);
+  abstract int[] batchStatement(String sql, List<Map<String, ?>> batchedBindings);
 
   private static class DataSourceSimpleJdbc extends SimpleJdbc {
     private final DataSource dataSource;
@@ -109,13 +116,13 @@ public abstract class SimpleJdbc {
     }
 
     @Override
-    public int update(String sql, Map<String, ?> bindings) {
-      return withConnection(conn -> update(conn, sql, bindings));
+    public int statement(String sql, Map<String, ?> bindings) {
+      return withConnection(conn -> statement(conn, sql, bindings));
     }
 
     @Override
-    public int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings) {
-      return withConnection(conn -> batchedUpdate(conn, sql, batchedBindings));
+    public int[] batchStatement(String sql, List<Map<String, ?>> batchedBindings) {
+      return withConnection(conn -> batchStatement(conn, sql, batchedBindings));
     }
 
     @Override
@@ -145,13 +152,13 @@ public abstract class SimpleJdbc {
     }
 
     @Override
-    public int update(String sql, Map<String, ?> bindings) {
-      return update(connection, sql, bindings);
+    public int statement(String sql, Map<String, ?> bindings) {
+      return statement(connection, sql, bindings);
     }
 
     @Override
-    public int[] batchedUpdate(String sql, List<Map<String, ?>> batchedBindings) {
-      return batchedUpdate(connection, sql, batchedBindings);
+    public int[] batchStatement(String sql, List<Map<String, ?>> batchedBindings) {
+      return batchStatement(connection, sql, batchedBindings);
     }
 
     @Override
@@ -173,7 +180,7 @@ public abstract class SimpleJdbc {
     }
   }
 
-  int update(Connection conn, String sql, Map<String, ?> bindings) {
+  int statement(Connection conn, String sql, Map<String, ?> bindings) {
     ParameterizedQuery pq = ParameterizedQuery.from(sql, bindings);
     try (PreparedStatement stmt = conn.prepareStatement(pq.getSql())) {
       applyParameters(stmt, pq.getParameters());
@@ -183,7 +190,7 @@ public abstract class SimpleJdbc {
     }
   }
 
-  int[] batchedUpdate(Connection conn, String sql, List<Map<String, ?>> bindingsBatch) {
+  int[] batchStatement(Connection conn, String sql, List<Map<String, ?>> bindingsBatch) {
     if (bindingsBatch.isEmpty()) {
       throw new SimpleJdbcException("Empty batch");
     }

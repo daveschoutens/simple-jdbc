@@ -61,7 +61,7 @@ abstract class SimpleJdbcTest {
     when(connection.prepareStatement(anyString())).thenThrow(new SQLException("test"));
     SimpleJdbcException ex =
         assertThrows(
-            SimpleJdbcException.class, () -> getSubject().update("sql", ImmutableMap.of()));
+            SimpleJdbcException.class, () -> getSubject().statement("sql", ImmutableMap.of()));
     assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
   }
 
@@ -71,7 +71,7 @@ abstract class SimpleJdbcTest {
     SimpleJdbcException ex =
         assertThrows(
             SimpleJdbcException.class,
-            () -> getSubject().batchedUpdate("sql", ImmutableList.of(ImmutableMap.of())));
+            () -> getSubject().batchStatement("sql", ImmutableList.of(ImmutableMap.of())));
     assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
   }
 
@@ -79,7 +79,7 @@ abstract class SimpleJdbcTest {
   void batchedUpdate_withEmptyBatch_throws() {
     SimpleJdbcException ex =
         assertThrows(
-            SimpleJdbcException.class, () -> getSubject().batchedUpdate("sql", ImmutableList.of()));
+            SimpleJdbcException.class, () -> getSubject().batchStatement("sql", ImmutableList.of()));
     assertThat(ex).hasMessageThat().contains("Empty batch");
   }
 
@@ -90,7 +90,7 @@ abstract class SimpleJdbcTest {
             SimpleJdbcException.class,
             () ->
                 getSubject()
-                    .batchedUpdate(
+                    .batchStatement(
                         "select :foo",
                         ImmutableList.of(
                             ImmutableMap.of("foo", ImmutableList.of(1, 2)),
@@ -108,14 +108,14 @@ abstract class SimpleJdbcTest {
 
   @Test
   void update_closesResources() throws SQLException {
-    getSubject().update("select 1", ImmutableMap.of());
+    getSubject().statement("select 1", ImmutableMap.of());
 
     verify(preparedStatement).close();
   }
 
   @Test
   void batchedUpdate_closesResources() throws SQLException {
-    getSubject().batchedUpdate("select 1", ImmutableList.of(ImmutableMap.of()));
+    getSubject().batchStatement("select 1", ImmutableList.of(ImmutableMap.of()));
 
     verify(preparedStatement).close();
   }
@@ -133,7 +133,7 @@ abstract class SimpleJdbcTest {
 
   @Test
   void update_appliesParametersCorrectly() throws SQLException {
-    getSubject().update(":foo :bar :baz", ImmutableMap.of("baz", 123, "bar", 456, "foo", 789));
+    getSubject().statement(":foo :bar :baz", ImmutableMap.of("baz", 123, "bar", 456, "foo", 789));
 
     verify(preparedStatement).setInt(1, 789);
     verify(preparedStatement).setInt(2, 456);
@@ -144,7 +144,7 @@ abstract class SimpleJdbcTest {
   @Test
   void batchedUpdate_appliesParametersCorrectly() throws SQLException {
     getSubject()
-        .batchedUpdate(
+        .batchStatement(
             ":foo :bar :baz",
             ImmutableList.of(
                 ImmutableMap.of("baz", 123, "bar", 456, "foo", 789),
@@ -247,17 +247,17 @@ abstract class SimpleJdbcTest {
     }
 
     @Nested
-    class UpdateBuilderTest {
+    class StatementBuilderTest {
       @Test
       void bindAll_null_throws() {
-        assertThrows(NullPointerException.class, () -> subject.update("whatever").bindAll(null));
+        assertThrows(NullPointerException.class, () -> subject.statement("whatever").bindAll(null));
       }
 
       @Test
       void bindAll_test() {
         String sql = "some sql with :bind :variables";
         ImmutableMap<String, Integer> bindings = ImmutableMap.of("bind", 123, "variables", 456);
-        subject.update(sql).bindAll(bindings).execute();
+        subject.statement(sql).bindAll(bindings).execute();
 
         assertUpdateExecution(sql, bindings);
       }
@@ -265,7 +265,7 @@ abstract class SimpleJdbcTest {
       @Test
       void bind_test() {
         String sql = "some sql with :bind :variables";
-        subject.update(sql).bind("bind", 123).bind("variables", 456).execute();
+        subject.statement(sql).bind("bind", 123).bind("variables", 456).execute();
 
         assertUpdateExecution(sql, ImmutableMap.of("bind", 123, "variables", 456));
       }
@@ -273,7 +273,7 @@ abstract class SimpleJdbcTest {
       private void assertUpdateExecution(String sql, Map<String, ?> bindings) {
         ArgumentCaptor<String> sqlArg = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Map<String, ?>> bindingsArg = ArgumentCaptor.forClass(Map.class);
-        verify(subject).update(sqlArg.capture(), bindingsArg.capture());
+        verify(subject).statement(sqlArg.capture(), bindingsArg.capture());
 
         assertThat(sqlArg.getValue()).isEqualTo(sql);
         assertThat(bindingsArg.getValue()).isEqualTo(bindings);
@@ -281,25 +281,25 @@ abstract class SimpleJdbcTest {
     }
 
     @Nested
-    class BatchedUpdateBuilderTest {
+    class BatchedStatementBuilderTest {
 
       @Test
       void batchAdd_null_throws() {
         assertThrows(
-            NullPointerException.class, () -> subject.batchedUpdate("whatever").batchAdd(null));
+            NullPointerException.class, () -> subject.batchStatement("whatever").batchAdd(null));
       }
 
       @Test
       void batchAddAll_null_throws() {
         assertThrows(
-            NullPointerException.class, () -> subject.batchedUpdate("whatever").batchAddAll(null));
+            NullPointerException.class, () -> subject.batchStatement("whatever").batchAddAll(null));
       }
 
       @Test
       void piecemeal_test() {
         String sql = "some sql with :bind :variables";
         subject
-            .batchedUpdate(sql)
+            .batchStatement(sql)
             .bind("bind", 123)
             .bind("variables", 456)
             .addBatch()
@@ -320,7 +320,7 @@ abstract class SimpleJdbcTest {
         String sql = "some sql with :bind :variables";
         ImmutableMap<String, Integer> binding = ImmutableMap.of("bind", 321, "variables", 654);
         subject
-            .batchedUpdate(sql)
+            .batchStatement(sql)
             .batchAdd(ImmutableMap.of("bind", 123, "variables", 456))
             .batchAdd(binding)
             .executeBatch();
@@ -336,7 +336,7 @@ abstract class SimpleJdbcTest {
       void batchAddAll_test() {
         String sql = "some sql with :bind :variables";
         subject
-            .batchedUpdate(sql)
+            .batchStatement(sql)
             .batchAddAll(
                 ImmutableList.of(
                     ImmutableMap.of("bind", 123, "variables", 456),
@@ -354,7 +354,7 @@ abstract class SimpleJdbcTest {
       void mixed_test() {
         String sql = "some sql with :bind :variables";
         subject
-            .batchedUpdate(sql)
+            .batchStatement(sql)
             .batchAddAll(ImmutableList.of(ImmutableMap.of("bind", 123, "variables", 456)))
             .batchAdd(ImmutableMap.of("bind", 321, "variables", 654))
             .bind("bind", 789)
@@ -374,7 +374,7 @@ abstract class SimpleJdbcTest {
           String sql, ImmutableList<ImmutableMap<String, Integer>> batchedBindings) {
         ArgumentCaptor<String> sqlArg = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<List<Map<String, ?>>> bindingsArg = ArgumentCaptor.forClass(List.class);
-        verify(subject).batchedUpdate(sqlArg.capture(), bindingsArg.capture());
+        verify(subject).batchStatement(sqlArg.capture(), bindingsArg.capture());
 
         assertThat(sqlArg.getValue()).isEqualTo(sql);
         assertThat(bindingsArg.getValue()).isEqualTo(batchedBindings);
@@ -441,13 +441,13 @@ abstract class SimpleJdbcTest {
 
     @Test
     void update_canReuseConnection() throws SQLException {
-      subject.update("some query", ImmutableMap.of());
+      subject.statement("some query", ImmutableMap.of());
       verify(connection, times(0)).close();
     }
 
     @Test
     void batchedUpdate_canReuseConnection() throws SQLException {
-      subject.batchedUpdate("some query", ImmutableList.of(ImmutableMap.of()));
+      subject.batchStatement("some query", ImmutableList.of(ImmutableMap.of()));
       verify(connection, times(0)).close();
     }
   }

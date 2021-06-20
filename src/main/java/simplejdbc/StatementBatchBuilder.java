@@ -7,24 +7,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class BatchedUpdateBuilder {
+public class StatementBatchBuilder {
 
   private final SimpleJdbc jdbc;
   private final String sql;
   private final List<Map<String, ?>> batchedBindings = new ArrayList<>();
 
-  public BatchedUpdateBuilder(SimpleJdbc jdbc, String sql) {
+  public StatementBatchBuilder(SimpleJdbc jdbc, String sql) {
     this.jdbc = jdbc;
     this.sql = sql;
   }
 
-  public BatchedUpdateBuilder batchAdd(Map<String, ?> bindings) {
+  public StatementBatchBuilder batchAdd(Map<String, ?> bindings) {
     Objects.requireNonNull(bindings, "bindings (map) must not be null");
     this.batchedBindings.add(bindings);
     return this;
   }
 
-  public BatchedUpdateBuilder batchAddAll(Collection<Map<String, ?>> bindingsBatch) {
+  public StatementBatchBuilder batchAddAll(Collection<Map<String, ?>> bindingsBatch) {
     Objects.requireNonNull(batchedBindings, "bindings batch (list) must not be null");
     this.batchedBindings.addAll(bindingsBatch);
     return this;
@@ -42,12 +42,12 @@ public class BatchedUpdateBuilder {
       return this;
     }
 
-    public BatchedUpdateBuilder addBatch() {
-      return BatchedUpdateBuilder.this.batchAdd(batchValueBuilder);
+    public StatementBatchBuilder addBatch() {
+      return StatementBatchBuilder.this.batchAdd(batchValueBuilder);
     }
   }
 
   public int[] executeBatch() {
-    return jdbc.batchedUpdate(sql, batchedBindings);
+    return jdbc.batchStatement(sql, batchedBindings);
   }
 }
