@@ -79,7 +79,8 @@ abstract class SimpleJdbcTest {
   void batchedUpdate_withEmptyBatch_throws() {
     SimpleJdbcException ex =
         assertThrows(
-            SimpleJdbcException.class, () -> getSubject().batchStatement("sql", ImmutableList.of()));
+            SimpleJdbcException.class,
+            () -> getSubject().batchStatement("sql", ImmutableList.of()));
     assertThat(ex).hasMessageThat().contains("Empty batch");
   }
 
