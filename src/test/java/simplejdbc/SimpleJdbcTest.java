@@ -463,6 +463,7 @@ abstract class SimpleJdbcTest {
     @Test
     void doTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
       getSubject().transactionally(jdbc -> {});
+      connection.setTransactionIsolation(Connection.TRANSACTION_NONE);
 
       verify(connection).setAutoCommit(false);
       verify(connection).commit();

@@ -25,7 +25,7 @@ List<SomeObject> results =
         .query("select foo, bar, baz from some_table where id = :id and thing = :thing")
         .bind("id",123)
         .bind("thing",456)
-        .select(queryResult-> /* your extraction logic here */);
+        .select(queryResult-> /* your mapping logic here */);
 ```
 
 #### Query Result Extraction
@@ -40,63 +40,67 @@ The following methods are more convenient to use in these situations:
 
 ##### Existence Check
 
+The code below simply returns `true` if the query returned any results, `false` otherwise.
+
 ```java
 boolean isResultExists = simpleJdbc.query(...).selectExists();
 ```
 
-##### Expecting _Exactly One_ Result
-
-The below code throws an exception if the query returns anything other than a single row. Iteration
-over the underlying `ResultSet` is managed automatically, so the `QueryResultExtractor`
-(lambda function) need not call the `next()` method.
-
-```java
-Foo result =
-    simpleJdbc
-        .query(/* query */ )
-        .bind(/* bindings */)
-        .selectExactlyOne(queryResult -> new Foo(queryResult));
-```
-
-##### Expecting _At Most One_ Result
-
-The below code throws an exception if the query returns more than one row, but returns an `Optional`
-otherwise - either `empty()` or the result of the provided `QueryResultExtractor` callback. Again,
-there is no need to call `next()` within the callback.
-
-```java
-Optional<Foo> result =
-    simpleJdbc
-        .query(/* query */ )
-        .bind(/* bindings */)
-        .selectMaybeOne(queryResult -> new Foo(queryResult));
-```
-
-##### Getting the First Result (if it exists)
-
-Similar to the previous method, with the exception (pun intended) that no exceptions are thrown when
-there are multiple results. Instead of erroring out, this method just ignores subsequent results.
-
-```java
-Optional<Foo> result =
-    simpleJdbc
-        .query(/* query */ )
-        .bind(/* bindings */)
-        .selectFirst(queryResult -> new Foo(queryResult));
-```
-
 ##### Returning a List of Results
 
-Most often, our queries return multiple rows, and we want to treat each row an individual
-result. The below method makes this more convenient (as with the others) by automating the iteration
-of the `next()` method so you don't have to.
+Most often, our queries return multiple rows, and we want to treat each row as an individual result.
+The below method makes this more convenient by invoking the provided callback once per result row, and collecting the
+results as a list.
 
 ```java
 List<Foo> results =
     simpleJdbc
         .query(/* query */ )
         .bind(/* bindings */)
-        .selectList(queryResult -> new Foo(queryResult));
+        .selectList(queryResult -> /* your mapping logic here */);
+```
+
+##### Getting the First Result (if it exists)
+
+The code below invokes the provided callback for the first result row only, and returns the result
+in an `Optional`. If the query yields no results, the returned `Optional` is empty. If the query
+yields multiple results, everything beyond the first result is simply ignored.
+
+```java
+Optional<Foo> result =
+    simpleJdbc
+        .query(/* query */ )
+        .bind(/* bindings */)
+        .selectFirst(queryResult -> /* your mapping logic here */);
+```
+
+##### Expecting _At Most One_ Result
+
+The code below behaves exactly like the previous method, with the exception (pun intended) that if
+the query yields more than one result, it is considered an error, and an exception will be thrown
+rather than returning a result.
+
+```java
+Optional<Foo> result =
+    simpleJdbc
+        .query(/* query */ )
+        .bind(/* bindings */)
+        .selectMaybeOne(queryResult -> /* your mapping logic here */);
+```
+
+##### Expecting _Exactly One_ Result
+
+The code below behaves very similarly to the previous method, but tightens the contract even
+further. If the query yields one row, the callback is invoked and result returned directly (not
+wrapped in an `Optional`). If the query yields anything other than a _single_ result, an exception
+is thrown.
+
+```java
+Foo result =
+    simpleJdbc
+        .query(/* query */ )
+        .bind(/* bindings */)
+        .selectExactlyOne(queryResult -> /* your mapping logic here */);
 ```
 
 ### Statement
@@ -105,9 +109,9 @@ List<Foo> results =
 int rowsAffected =
     SimpleJdbc.using(dataSource)
         .statement("update some_table set foo = :foo, bar = :bar where id = :id")
-        .bind("foo","someValue")
-        .bind("bar",56.25)
-        .bind("id",12345L)
+        .bind("foo", "someValue")
+        .bind("bar", 56.25)
+        .bind("id", 12345L)
         .execute();
 ```
 
@@ -117,13 +121,13 @@ int rowsAffected =
 int[] rowsAffected =
     SimpleJdbc.using(dataSource)
         .batchStatement("update some_table set foo = :foo, bar = :bar where id = :id")
-        .bind("foo","someValue")
-        .bind("bar",56.25)
-        .bind("id",12345L)
+        .bind("foo", "someValue")
+        .bind("bar", 56.25)
+        .bind("id", 12345L)
         .addBatch()
-        .bind("foo","someOtherValue")
-        .bind("bar",25.56)
-        .bind("id",54321L)
+        .bind("foo", "someOtherValue")
+        .bind("bar", 25.56)
+        .bind("id", 54321L)
         .executeBatch();
 
 ```
@@ -139,8 +143,8 @@ int rowsAffected =
     SimpleJdbc.using(dataSource)
         .insert()
         .into("some_table")
-        .set("column1",123)
-        .set("column2",456)
+        .set("column1", 123)
+        .set("column2", 456)
         .execute();
 ```
 
@@ -153,11 +157,11 @@ int rowsAffected =
     SimpleJdbc.using(dataSource)
         .update()
         .table("some_table")
-        .set("foo",123)
-        .set("bar",456)
+        .set("foo", 123)
+        .set("bar", 456)
         .where("id = :id and some_other_field = :someOtherField")
-        .bind("id",12345L)
-        .bind("someOtherField","someValue")
+        .bind("id", 12345L)
+        .bind("someOtherField", "someValue")
         .execute();
 ```
 
@@ -187,15 +191,25 @@ SimpleJdbc.using(dataSource)
     });
 ```
 
+It is possible to control the transaction isolation level by passing an additional parameter:
+```java
+SimpleJdbc.using(dataSource)
+    .transactionally(
+        TransactionIsolationLevel.REPEATABLE_READ,
+        simpleJdbc -> {
+            // use lambda parameter (a SimpleJdbc instance) to do stuff to the database 
+            // automatically calls rollback() on underlying Connection if an exception is raised
+            // or commit() at end of function if no exceptions raised
+        });
+```
+
 ## TODO
 
 ### Definitely
 
 1. Transactions
     * Prevent creation of nested transactions (because they wouldn't work correctly anyway)
-    * Support control over transaction isolation level
     * Integration test (with real DB(s))
-2. Enhanced DSL for queries - exists(), single(), first(), list()
 3. Add more integration tests with more DB types (at minimum: MySQL & Oracle)
 4. Clob and Blob support
 5. Javadoc
@@ -203,5 +217,4 @@ SimpleJdbc.using(dataSource)
 
 ### Maybe
 
-1. QueryRowResult stream()
-3. SQL _script_ support (likely vendor-specific... if so, a no-go)
+1. SQL _script_ support (likely vendor-specific... if so, a no-go)

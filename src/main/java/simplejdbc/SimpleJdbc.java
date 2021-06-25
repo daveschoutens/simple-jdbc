@@ -61,7 +61,13 @@ public abstract class SimpleJdbc {
   }
 
   public void transactionally(JdbcConsumer transactionalFn) {
+    transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
+  }
+
+  public void transactionally(
+      TransactionIsolationLevel isolationLevel, JdbcConsumer transactionalFn) {
     transactionally(
+        isolationLevel,
         simpleJdbc -> {
           transactionalFn.accept(simpleJdbc);
           return null;
@@ -69,11 +75,18 @@ public abstract class SimpleJdbc {
   }
 
   public <T> T transactionally(JdbcFunction<T> transactionalFn) {
-    return withConnection(conn -> transactionally(conn, transactionalFn));
+    return transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
   }
 
-  private <T> T transactionally(Connection conn, JdbcFunction<T> transactionalFn) {
+  public <T> T transactionally(
+      TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
+    return withConnection(conn -> transactionally(conn, isolationLevel, transactionalFn));
+  }
+
+  private <T> T transactionally(
+      Connection conn, TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
     try {
+      conn.setTransactionIsolation(isolationLevel.getMagicConstantValue());
       boolean autoCommit = conn.getAutoCommit();
       conn.setAutoCommit(false);
       try {
@@ -88,6 +101,27 @@ public abstract class SimpleJdbc {
       }
     } catch (SQLException ex) {
       throw new SimpleJdbcException(ex);
+    }
+  }
+
+  public enum TransactionIsolationLevel {
+    READ_UNCOMMITTED(Connection.TRANSACTION_READ_UNCOMMITTED),
+    READ_COMMITTED(Connection.TRANSACTION_READ_COMMITTED),
+    REPEATABLE_READ(Connection.TRANSACTION_REPEATABLE_READ),
+    SERIALIZABLE(Connection.TRANSACTION_SERIALIZABLE);
+
+    public static TransactionIsolationLevel getDefault() {
+      return READ_COMMITTED;
+    }
+
+    private final int magicConstantValue;
+
+    TransactionIsolationLevel(int magicConstantValue) {
+      this.magicConstantValue = magicConstantValue;
+    }
+
+    public int getMagicConstantValue() {
+      return magicConstantValue;
     }
   }
 
