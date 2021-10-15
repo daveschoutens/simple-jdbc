@@ -13,11 +13,11 @@ import java.util.stream.Stream;
 
 public class UpdateBuilder {
 
-  static Update get(SimpleJdbc jdbc) {
+  static Builder get(SimpleJdbc jdbc) {
     return new Builder(jdbc);
   }
 
-  static class Builder implements Update, UpdateTable, UpdateTableConditions {
+  static class Builder implements Update, UpdateTable, UpdateTableSet, UpdateTableConditions {
     private final SimpleJdbc jdbc;
     private String tableName;
     private final Map<String, Object> columns = new HashMap<>();
@@ -40,7 +40,7 @@ public class UpdateBuilder {
     }
 
     @Override
-    public UpdateTable set(String columnName, Object value) {
+    public UpdateTableSet set(String columnName, Object value) {
       check(columnName != null, "column name must not be null");
       check(!columnName.isEmpty(), "column name must not be blank");
       check(
@@ -129,8 +129,10 @@ public class UpdateBuilder {
   }
 
   public interface UpdateTable {
-    UpdateTable set(String columnName, Object value);
+    UpdateTableSet set(String columnName, Object value);
+  }
 
+  public interface UpdateTableSet extends UpdateTable {
     UpdateTableConditions where(String sqlConditions);
 
     int executeUnconditionally();

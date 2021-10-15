@@ -80,13 +80,6 @@ class UpdateBuilderTest {
   }
 
   @Test
-  void where_withNoColumnValuesSet_throws() {
-    assertException(
-        () -> simpleJdbc.update().table("table").where("foo = :foo"),
-        "must set() at least one column");
-  }
-
-  @Test
   void where_withNullCondition_throws() {
     assertException(
         () -> simpleJdbc.update().table("table").set("columnName", null).where(null),
@@ -150,13 +143,6 @@ class UpdateBuilderTest {
                 .where("foo = :foo")
                 .bind("param-name", 1),
         "bind parameter name must not contain spaces or special characters");
-  }
-
-  @Test
-  void executeUnconditionally_withNoColumnsSet_throws() {
-    assertException(
-        () -> simpleJdbc.update().table("table").executeUnconditionally(),
-        "must set() at least one column");
   }
 
   @Test

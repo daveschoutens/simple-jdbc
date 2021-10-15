@@ -93,9 +93,7 @@ public class InsertBuilder {
     InsertIntoSet set(String columnName, Object value);
   }
 
-  public interface InsertIntoSet {
-    InsertIntoSet set(String columnName, Object value);
-
+  public interface InsertIntoSet extends InsertInto {
     int execute();
   }
 
