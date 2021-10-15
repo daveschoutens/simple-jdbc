@@ -60,6 +60,10 @@ public abstract class SimpleJdbc {
     return InsertBuilder.get(this);
   }
 
+  public InsertBuilder.InsertBatch insertBatch() {
+    return InsertBuilder.get(this);
+  }
+
   public void transactionally(JdbcConsumer transactionalFn) {
     transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
   }

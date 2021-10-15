@@ -1,5 +1,6 @@
 package simplejdbc;
 
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -7,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static simplejdbc.TestUtil.assertException;
 
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -107,5 +109,28 @@ class InsertBuilderTest {
         .statement(
             "insert into schema_name.table_name (column, otherColumn) values (:column, :otherColumn)",
             ImmutableMap.of("column", 123, "otherColumn", "someValue"));
+  }
+
+  @Test
+  void insertBatch_resultsInExpectedCoreCall() {
+    doReturn(new int[0]).when(simpleJdbc).batchStatement(anyString(), anyList());
+
+    simpleJdbc
+        .insertBatch()
+        .into("table")
+        .set("column", 123)
+        .set("otherColumn", "someValue")
+        .addBatch()
+        .set("column", 456)
+        .set("otherColumn", "someOtherValue")
+        .addBatch()
+        .executeBatch();
+
+    verify(simpleJdbc)
+        .batchStatement(
+            "insert into table (column, otherColumn) values (:column, :otherColumn)",
+            ImmutableList.of(
+                ImmutableMap.of("column", 123, "otherColumn", "someValue"),
+                ImmutableMap.of("column", 456, "otherColumn", "someOtherValue")));
   }
 }
