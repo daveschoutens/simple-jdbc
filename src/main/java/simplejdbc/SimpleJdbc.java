@@ -271,6 +271,10 @@ public abstract class SimpleJdbc {
     T extract(QueryResult queryResult) throws SQLException;
   }
 
+  public interface QueryRowResultExtractor<T> {
+    T extract(QueryRowResult rowResult) throws SQLException;
+  }
+
   public interface JdbcConsumer {
     void accept(SimpleJdbc jdbc) throws SQLException;
   }

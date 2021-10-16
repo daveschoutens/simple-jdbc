@@ -1,14 +1,12 @@
 package simplejdbc;
 
-import static simplejdbc.Util.check;
-
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import simplejdbc.SimpleJdbc.QueryResultExtractor;
+import simplejdbc.SimpleJdbc.QueryRowResultExtractor;
 
 public class QueryBuilder {
 
@@ -53,12 +51,13 @@ public class QueryBuilder {
    * <p>Returns the result of calling the given `rowExtractor` on the first row of results. If the
    * query did not return *exactly* one row, an exception is thrown.
    *
-   * @param rowExtractor a callback which will be passed a QueryResult for the first row, if it exists
+   * @param rowExtractor a callback which will be passed a QueryRowResult for the first row, if it
+   *     exists
    * @return the object returned by the callback
    * @throws SimpleJdbcException if query returns zero results
    * @throws SimpleJdbcException if query returns more than one result
    */
-  public <T> T selectExactlyOne(QueryResultExtractor<T> rowExtractor) {
+  public <T> T selectExactlyOne(QueryRowResultExtractor<T> rowExtractor) {
     return select(QueryResultExtractors.exactlyOne(rowExtractor));
   }
 
@@ -69,11 +68,12 @@ public class QueryBuilder {
    * <p>Returns an `Optional` containing the mapped object from the `rowExtractor` on the first
    * query result, otherwise `empty()`. If more than one row is returned, an exception is thrown.
    *
-   * @param rowExtractor a callback which will be passed a QueryResult for the first row, if it exists
+   * @param rowExtractor a callback which will be passed a QueryRowResult for the first row, if it
+   *     exists
    * @return an `Optional` containing the object returned by the callback, or `empty()` if no result
    * @throws SimpleJdbcException if query returns more than one result
    */
-  public <T> Optional<T> selectMaybeOne(QueryResultExtractor<T> rowExtractor) {
+  public <T> Optional<T> selectMaybeOne(QueryRowResultExtractor<T> rowExtractor) {
     return select(QueryResultExtractors.maybeOne(rowExtractor));
   }
 
@@ -84,22 +84,23 @@ public class QueryBuilder {
    * <p>Returns an `Optional` containing the mapped object from the `rowExtractor` on the first
    * query result, otherwise `empty()`. Any additional results are ignored.
    *
-   * @param rowExtractor a callback which will be passed a QueryResult for the first row, if it exists
+   * @param rowExtractor a callback which will be passed a QueryRowResult for the first row, if it
+   *     exists
    * @return an `Optional` containing the object returned by the callback, or `empty()` if no result
    */
-  public <T> Optional<T> selectFirst(QueryResultExtractor<T> rowExtractor) {
+  public <T> Optional<T> selectFirst(QueryRowResultExtractor<T> rowExtractor) {
     return select(QueryResultExtractors.first(rowExtractor));
   }
 
   /**
    * Convenience method for situations where one wishes to perform row-level mapping on all rows
-   * returned by the query. This method automatically advances the `ResultSet` and calls the provided
-   * callback once per result row, collecting the results into a List.
+   * returned by the query. This method automatically advances the `ResultSet` and calls the
+   * provided callback once per result row, collecting the results into a List.
    *
-   * @param rowExtractor a callback which will be passed a QueryResult for each returned row
+   * @param rowExtractor a callback which will be passed a QueryRowResult for each returned row
    * @return a `List` containing the mapped objects
    */
-  public <T> List<T> selectList(QueryResultExtractor<T> rowExtractor) {
+  public <T> List<T> selectList(QueryRowResultExtractor<T> rowExtractor) {
     return select(QueryResultExtractors.list(rowExtractor));
   }
 }
