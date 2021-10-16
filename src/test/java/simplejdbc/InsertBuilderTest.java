@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 import static simplejdbc.TestUtil.assertException;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -116,7 +115,7 @@ class InsertBuilderTest {
     doReturn(new int[0]).when(simpleJdbc).batchStatement(anyString(), anyList());
 
     simpleJdbc
-        .insertBatch()
+        .batchInsert()
         .into("table")
         .set("column", 123)
         .set("otherColumn", "someValue")

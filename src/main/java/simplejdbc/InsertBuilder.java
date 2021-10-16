@@ -21,10 +21,10 @@ public class InsertBuilder {
       implements Insert,
           InsertInto,
           InsertIntoSet,
-          InsertBatch,
-          InsertBatchInto,
-          InsertBatchIntoSet,
-          InsertBatchReady {
+      BatchInsert,
+      BatchInsertInto,
+      BatchInsertIntoSet,
+      BatchInsertReady {
     private final SimpleJdbc jdbc;
     private String tableName;
     private Map<String, Object> columnValues = new HashMap<>();
@@ -97,23 +97,23 @@ public class InsertBuilder {
     int execute();
   }
 
-  public interface InsertBatch {
-    InsertBatchInto into(String tableName);
+  public interface BatchInsert {
+    BatchInsertInto into(String tableName);
   }
 
-  public interface InsertBatchInto {
-    InsertBatchIntoSet set(String columnName, Object value);
+  public interface BatchInsertInto {
+    BatchInsertIntoSet set(String columnName, Object value);
   }
 
-  public interface InsertBatchIntoSet {
-    InsertBatchIntoSet set(String columnName, Object value);
+  public interface BatchInsertIntoSet {
+    BatchInsertIntoSet set(String columnName, Object value);
 
-    InsertBatchReady addBatch();
+    BatchInsertReady addBatch();
   }
 
-  public interface InsertBatchReady {
+  public interface BatchInsertReady {
 
-    InsertBatchIntoSet set(String columnName, Object value);
+    BatchInsertIntoSet set(String columnName, Object value);
 
     int[] executeBatch();
   }

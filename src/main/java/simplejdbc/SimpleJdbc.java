@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+import simplejdbc.InsertBuilder.BatchInsert;
 
 public abstract class SimpleJdbc {
 
@@ -60,7 +61,7 @@ public abstract class SimpleJdbc {
     return InsertBuilder.get(this);
   }
 
-  public InsertBuilder.InsertBatch insertBatch() {
+  public BatchInsert batchInsert() {
     return InsertBuilder.get(this);
   }
 
