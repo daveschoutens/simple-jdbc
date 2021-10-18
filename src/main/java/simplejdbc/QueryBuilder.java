@@ -51,8 +51,8 @@ public class QueryBuilder {
    * <p>Returns the result of calling the given `rowExtractor` on the first row of results. If the
    * query did not return *exactly* one row, an exception is thrown.
    *
-   * @param rowExtractor a callback which will be passed a QueryRowResult for the first row, if it
-   *     exists
+   * @param rowExtractor a callback to process a QueryRowResult for the first row, if it exists
+   * @param <T> the type of object returned by the provided rowExtractor
    * @return the object returned by the callback
    * @throws SimpleJdbcException if query returns zero results
    * @throws SimpleJdbcException if query returns more than one result
@@ -68,8 +68,8 @@ public class QueryBuilder {
    * <p>Returns an `Optional` containing the mapped object from the `rowExtractor` on the first
    * query result, otherwise `empty()`. If more than one row is returned, an exception is thrown.
    *
-   * @param rowExtractor a callback which will be passed a QueryRowResult for the first row, if it
-   *     exists
+   * @param rowExtractor a callback to process a QueryRowResult for the first row, if it exists
+   * @param <T> the type of object returned by the provided rowExtractor
    * @return an `Optional` containing the object returned by the callback, or `empty()` if no result
    * @throws SimpleJdbcException if query returns more than one result
    */
@@ -84,8 +84,8 @@ public class QueryBuilder {
    * <p>Returns an `Optional` containing the mapped object from the `rowExtractor` on the first
    * query result, otherwise `empty()`. Any additional results are ignored.
    *
-   * @param rowExtractor a callback which will be passed a QueryRowResult for the first row, if it
-   *     exists
+   * @param rowExtractor a callback to process a QueryRowResult for the first row, if it exists
+   * @param <T> the type of object returned by the provided rowExtractor
    * @return an `Optional` containing the object returned by the callback, or `empty()` if no result
    */
   public <T> Optional<T> selectFirst(QueryRowResultExtractor<T> rowExtractor) {
@@ -97,7 +97,8 @@ public class QueryBuilder {
    * returned by the query. This method automatically advances the `ResultSet` and calls the
    * provided callback once per result row, collecting the results into a List.
    *
-   * @param rowExtractor a callback which will be passed a QueryRowResult for each returned row
+   * @param rowExtractor a callback to process a QueryRowResult for each returned row
+   * @param <T> the type of object returned by the provided rowExtractor
    * @return a `List` containing the mapped objects
    */
   public <T> List<T> selectList(QueryRowResultExtractor<T> rowExtractor) {
