@@ -39,7 +39,7 @@ class ColumnExtractors {
               if (extracted == null) return null;
               if (extracted.length() == 1) return extracted.charAt(0);
               throw new SimpleJdbcException(
-                  "Failed to extract single Character from ResultSet. Extracted String length > 1");
+                  "Failed to extract single Character from ResultSet. Extracted String length != 1");
             })
         .registerExtractor(String.class, ResultSet::getString)
         .registerExtractor(
