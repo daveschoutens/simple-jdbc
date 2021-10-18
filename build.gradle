@@ -1,6 +1,11 @@
 plugins {
     id 'java-library'
+    id "signing"
+    id "maven-publish"
+    id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
 }
+
+group = "io.github.daveschoutens.simple-jdbc"
 
 repositories {
     mavenCentral()
@@ -25,4 +30,93 @@ compileJava {
 
 test {
     useJUnitPlatform()
+}
+
+// configure all java components to be published
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
+
+// ossrh requires javadoc and sources https://central.sonatype.org/pages/requirements.html
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+// ossrh requires signing https://central.sonatype.org/pages/requirements.html
+// https://docs.gradle.org/current/userguide/signing_plugin.html
+// this only configures signing if the key is found
+// For signing you need to make signingKey and signingPassword available properties See https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
+// The following makes the key available via the Gradle Property signingKey
+// export ORG_GRADLE_PROJECT_signingKey=`cat test-private.pgp`
+// export ORG_GRADLE_PROJECT_signingPassword="password"
+// After making the Gradle properties above available, you can try signing using
+// ./gradlew signMavenPublication
+def hasSigningKey = project.hasProperty("signingKeyId") || project.hasProperty("signingKey")
+if (hasSigningKey) {
+    sign(project)
+}
+
+void sign(Project project) {
+    project.signing {
+        required { project.gradle.taskGraph.hasTask("publish") }
+        def signingKeyId = project.findProperty("signingKeyId")
+        def signingKey = project.findProperty("signingKey")
+        def signingPassword = project.findProperty("signingPassword")
+        if (signingKeyId) {
+            useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        } else if (signingKey) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        }
+        sign publishing.publications.maven
+    }
+}
+
+// customize the pom so it complies to Maven central requirements https://central.sonatype.org/pages/requirements.html
+// https://docs.gradle.org/current/userguide/maven_plugin.html#sec:maven_pom_generation
+project.plugins.withType(MavenPublishPlugin).all {
+    PublishingExtension publishing = project.extensions.getByType(PublishingExtension)
+    publishing.publications.withType(MavenPublication).all { mavenPublication ->
+        mavenPublication.pom {
+            name = "${project.group}:${project.name}"
+            description = name
+            url = "https://github.com/daveschoutens/simple-jdbc"
+            licenses {
+                license {
+                    name = "MIT License"
+                    url = "https://opensource.org/licenses/MIT"
+                }
+            }
+            developers {
+                developer {
+                    id = "daveschoutens"
+                    name = "Dave Schoutens"
+                    email = "dschoutens@gmail.com"
+                }
+            }
+            scm {
+                connection = "scm:git:https://github.com/daveschoutens/simple-jdbc"
+                developerConnection = "scm:git:ssh://github.com/daveschoutens/simple-jdbc.git"
+                url = "https://github.com/daveschoutens/simple-jdbc"
+            }
+        }
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+        }
+    }
+
+    // these are not strictly required. The default timeouts are set to 1 minute. But Sonatype can be really slow.
+    // If you get the error "java.net.SocketTimeoutException: timeout", these lines will help.
+    connectTimeout = Duration.ofMinutes(3)
+    clientTimeout = Duration.ofMinutes(3)
 }
