@@ -11,7 +11,8 @@ import java.util.regex.Pattern;
 
 public class ParameterizedQuery {
 
-  private static final Pattern PARAM_REGEX = Pattern.compile("(?!\\B'[^']*):(\\w+)(?![^']*'\\B)");
+  private static final Pattern PARAM_REGEX =
+      Pattern.compile("(?!\\B'[^']*)(?<!:):(\\w+)(?![^']*'\\B)");
 
   @SuppressWarnings("rawtypes")
   static ParameterizedQuery from(String query, Map<String, ?> bindings) {

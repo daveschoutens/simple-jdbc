@@ -93,4 +93,14 @@ class ParameterizedQueryTest {
     assertThat(result.getSql()).isEqualTo("':insideString' ?");
     assertThat(result.getParameters()).containsExactly(123);
   }
+
+  @Test
+  void withShorthandCastOperator_doesNotGetConfused() {
+    ParameterizedQuery result =
+        ParameterizedQuery.from(
+            "not_a_param::string :a_param::jsonb", ImmutableMap.of("a_param", 123));
+
+    assertThat(result.getSql()).isEqualTo("not_a_param::string ?::jsonb");
+    assertThat(result.getParameters()).containsExactly(123);
+  }
 }
