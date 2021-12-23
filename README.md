@@ -388,3 +388,4 @@ SimpleJdbc.using(dataSource)
 
 1. SQL _script_ support
 2. Actively prevent creation of nested transactions (because they wouldn't work correctly anyway)
+3. Plugins / hooks? Something that could conveniently implement an in-clause builder
