@@ -1,5 +1,6 @@
 package simplejdbc;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -131,5 +132,10 @@ class InsertBuilderTest {
             ImmutableList.of(
                 ImmutableMap.of("column", 123, "otherColumn", "someValue"),
                 ImmutableMap.of("column", 456, "otherColumn", "someOtherValue")));
+  }
+
+  @Test
+  void insertBatch_withBatchSizeOfZero_ok() {
+    assertThat(simpleJdbc.batchInsert().into("table").executeBatch()).isEmpty();
   }
 }

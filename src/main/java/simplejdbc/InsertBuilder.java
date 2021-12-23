@@ -21,10 +21,9 @@ public class InsertBuilder {
       implements Insert,
           InsertInto,
           InsertIntoSet,
-      BatchInsert,
-      BatchInsertInto,
-      BatchInsertIntoSet,
-      BatchInsertReady {
+          BatchInsert,
+          BatchInsertInto,
+          BatchInsertIntoSet {
     private final SimpleJdbc jdbc;
     private String tableName;
     private Map<String, Object> columnValues = new HashMap<>();
@@ -65,6 +64,9 @@ public class InsertBuilder {
     @Override
     @SuppressWarnings("unchecked")
     public int[] executeBatch() {
+      if (batch.isEmpty()) {
+        return new int[0];
+      }
       return jdbc.batchStatement(buildSql((Map<String, Object>) batch.get(0)), batch);
     }
 
@@ -103,18 +105,13 @@ public class InsertBuilder {
 
   public interface BatchInsertInto {
     BatchInsertIntoSet set(String columnName, Object value);
+
+    int[] executeBatch();
   }
 
   public interface BatchInsertIntoSet {
     BatchInsertIntoSet set(String columnName, Object value);
 
-    BatchInsertReady addBatch();
-  }
-
-  public interface BatchInsertReady {
-
-    BatchInsertIntoSet set(String columnName, Object value);
-
-    int[] executeBatch();
+    BatchInsertInto addBatch();
   }
 }
