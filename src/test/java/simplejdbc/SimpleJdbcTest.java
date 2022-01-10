@@ -15,6 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -232,7 +233,6 @@ abstract class SimpleJdbcTest {
             sql, ImmutableMap.of("bind", 123, "variables", 456), queryResultExtractor);
       }
 
-      @Test
       private void assertQueryExecution(
           String sql, Map<String, ?> bindings, QueryResultExtractor<?> queryResultExtractor) {
         ArgumentCaptor<String> sqlArg = ArgumentCaptor.forClass(String.class);
@@ -244,6 +244,16 @@ abstract class SimpleJdbcTest {
         assertThat(sqlArg.getValue()).isEqualTo(sql);
         assertThat(bindingsArg.getValue()).isEqualTo(bindings);
         assertThat(qrArg.getValue()).isEqualTo(queryResultExtractor);
+      }
+
+      @Test
+      void queryBuilder_selectMaybeOne_withSingleNullValue_shouldWork_althoughAmbiguous()
+          throws SQLException {
+        QueryResultExtractor<Optional<String>> extractor = QueryResultExtractors.maybeOne(rs -> null);
+        QueryResult queryResult = Mockito.mock(QueryResult.class);
+        when(queryResult.next()).thenReturn(true, false);
+        Optional<String> foo = extractor.extract(queryResult);
+        assertThat(foo.isPresent()).isFalse();
       }
     }
 

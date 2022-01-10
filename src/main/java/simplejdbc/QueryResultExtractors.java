@@ -37,7 +37,7 @@ public class QueryResultExtractors {
       }
       T result = rowExtractor.extract(queryResult);
       check(!queryResult.next(), "expected at most one result, but got multiple");
-      return Optional.of(result);
+      return Optional.ofNullable(result);
     };
   }
 
