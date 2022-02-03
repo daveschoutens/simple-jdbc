@@ -19,7 +19,7 @@ public class TransactionsTest extends DatabaseContainerTest {
   @Test
   void tempTables_work() {
     String result =
-        jdbc.transactionally(
+        jdbc.transactAndGet(
             tx -> {
               tx.statement("create temp table foo (id varchar) on commit drop").execute();
               tx.insert().into("foo").set("id", "abc").execute();
@@ -32,7 +32,7 @@ public class TransactionsTest extends DatabaseContainerTest {
   void success_commits() {
     jdbc.insert().into("some_table").set("col_a", 123).set("col_b", "original_value").execute();
 
-    jdbc.transactionally(
+    jdbc.transact(
         tx -> {
           tx.update()
               .table("some_table")
@@ -54,7 +54,7 @@ public class TransactionsTest extends DatabaseContainerTest {
     jdbc.insert().into("some_table").set("col_a", 123).set("col_b", "original_value").execute();
 
     try {
-      jdbc.transactionally(
+      jdbc.transact(
           tx -> {
             tx.update()
                 .table("some_table")
@@ -62,7 +62,7 @@ public class TransactionsTest extends DatabaseContainerTest {
                 .where("col_a = :val")
                 .bind("val", 123)
                 .execute();
-            if (true) throw new RuntimeException("blah");
+            throw new RuntimeException("blah");
           });
     } catch (Exception ignored) {
     }

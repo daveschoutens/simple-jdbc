@@ -249,7 +249,8 @@ abstract class SimpleJdbcTest {
       @Test
       void queryBuilder_selectMaybeOne_withSingleNullValue_shouldWork_althoughAmbiguous()
           throws SQLException {
-        QueryResultExtractor<Optional<String>> extractor = QueryResultExtractors.maybeOne(rs -> null);
+        QueryResultExtractor<Optional<String>> extractor =
+            QueryResultExtractors.maybeOne(rs -> null);
         QueryResult queryResult = Mockito.mock(QueryResult.class);
         when(queryResult.next()).thenReturn(true, false);
         Optional<String> foo = extractor.extract(queryResult);
@@ -472,7 +473,7 @@ abstract class SimpleJdbcTest {
 
     @Test
     void doTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
-      getSubject().transactionally(jdbc -> {});
+      getSubject().transact(jdbc -> {});
       connection.setTransactionIsolation(Connection.TRANSACTION_NONE);
 
       verify(connection).setAutoCommit(false);
@@ -486,9 +487,9 @@ abstract class SimpleJdbcTest {
           RuntimeException.class,
           () ->
               getSubject()
-                  .transactionally(
+                  .transact(
                       jdbc -> {
-                        if (true) throw new RuntimeException("test");
+                        throw new RuntimeException("test");
                       }));
 
       verify(connection).setAutoCommit(false);
@@ -503,9 +504,9 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transactionally(
+                      .transact(
                           jdbc -> {
-                            if (true) throw new RuntimeException("test");
+                            throw new RuntimeException("test");
                           }));
       assertThat(ex).hasCauseThat().isNull();
       assertThat(ex).hasMessageThat().isEqualTo("test");
@@ -518,9 +519,9 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transactionally(
+                      .transact(
                           jdbc -> {
-                            if (true) throw new SQLException("test");
+                            throw new SQLException("test");
                           }));
       assertThat(ex).isNotInstanceOf(SQLException.class);
       assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
@@ -529,7 +530,7 @@ abstract class SimpleJdbcTest {
 
     @Test
     void getTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
-      String result = getSubject().transactionally(jdbc -> "result");
+      String result = getSubject().transactAndGet(jdbc -> "result");
 
       assertThat(result).isEqualTo("result");
       verify(connection).setAutoCommit(false);
@@ -543,9 +544,8 @@ abstract class SimpleJdbcTest {
           RuntimeException.class,
           () ->
               getSubject()
-                  .transactionally(
+                  .transactAndGet(
                       jdbc -> {
-                        if (false) return 1;
                         throw new RuntimeException("test");
                       }));
 
@@ -561,9 +561,8 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transactionally(
+                      .transactAndGet(
                           jdbc -> {
-                            if (false) return 1;
                             throw new RuntimeException("test");
                           }));
       assertThat(ex).hasCauseThat().isNull();
@@ -577,9 +576,8 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transactionally(
+                      .transactAndGet(
                           jdbc -> {
-                            if (false) return 1;
                             throw new SQLException("test");
                           }));
       assertThat(ex).isNotInstanceOf(SQLException.class);

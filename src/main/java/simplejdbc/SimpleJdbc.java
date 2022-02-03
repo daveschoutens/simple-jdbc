@@ -65,12 +65,46 @@ public abstract class SimpleJdbc {
     return InsertBuilder.get(this);
   }
 
+  /**
+   * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
+   * @deprecated Use `transact(fn)` instead
+   */
+  @Deprecated
   public void transactionally(JdbcConsumer transactionalFn) {
+    transact(transactionalFn);
+  }
+
+  /**
+   * @param isolationLevel TransactionIsolationLevel
+   * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
+   * @deprecated Use `transact(isolationLevel, fn)` instead
+   */
+  @Deprecated
+  public void transactionally(
+      TransactionIsolationLevel isolationLevel, JdbcConsumer transactionalFn) {
+    transact(isolationLevel, transactionalFn);
+  }
+
+  /**
+   * Executes the operation given by `transactionalFn` in a DB transaction, triggering a ROLLBACK
+   * if the operation throws an exception, or a COMMIT if successful
+   *
+   * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
+   */
+  public void transact(JdbcConsumer transactionalFn) {
     transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
   }
 
-  public void transactionally(
-      TransactionIsolationLevel isolationLevel, JdbcConsumer transactionalFn) {
+  /**
+   * Executes the operation given by `transactionalFn` in a DB transaction, triggering a ROLLBACK
+   * if the operation throws an exception, or a COMMIT if successful
+   *
+   * <p>Uses the given isolation level
+   *
+   * @param isolationLevel TransactionIsolationLevel
+   * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
+   */
+  public void transact(TransactionIsolationLevel isolationLevel, JdbcConsumer transactionalFn) {
     transactionally(
         isolationLevel,
         simpleJdbc -> {
@@ -79,13 +113,59 @@ public abstract class SimpleJdbc {
         });
   }
 
+  /**
+   * @param <T> type of value returned by invoking `transactionalFn`
+   * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
+   * @return value returned by invoking `transactionalFn`
+   * @deprecated Use `transactAndGet(fn)` instead
+   */
+  @Deprecated
   public <T> T transactionally(JdbcFunction<T> transactionalFn) {
-    return transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
+    return transactAndGet(transactionalFn);
   }
 
+  /**
+   * @param <T> type of value returned by invoking `transactionalFn`
+   * @param isolationLevel TransactionIsolationLevel
+   * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
+   * @return value returned by invoking `transactionalFn`
+   * @deprecated Use `transactAndGet(isolationLevel, fn)` instead
+   */
+  @Deprecated
   public <T> T transactionally(
       TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
+    return transactAndGet(isolationLevel, transactionalFn);
+  }
+
+  /**
+   * Executes the operation given by `transactionalFn` in a DB transaction, returning a result.
+   * Triggers a ROLLBACK if the operation throws an exception, or a COMMIT if successful.
+   *
+   * <p>Uses the given isolation level
+   *
+   * @param <T> type of value returned by invoking `transactionalFn`
+   * @param isolationLevel TransactionIsolationLevel
+   * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
+   * @return value returned by invoking `transactionalFn`
+   * @deprecated Use `transactAndGet(isolationLevel, fn)` instead
+   */
+  public <T> T transactAndGet(TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
     return withConnection(conn -> transactionally(conn, isolationLevel, transactionalFn));
+  }
+
+  /**
+   * Executes the operation given by `transactionalFn` in a DB transaction, returning a result.
+   * Triggers a ROLLBACK if the operation throws an exception, or a COMMIT if successful.
+   *
+   * <p>Uses the given isolation level
+   *
+   * @param <T> type of value returned by invoking `transactionalFn`
+   * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
+   * @return value returned by invoking `transactionalFn`
+   * @deprecated Use `transactAndGet(isolationLevel, fn)` instead
+   */
+  public <T> T transactAndGet(JdbcFunction<T> transactionalFn) {
+    return transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
   }
 
   private <T> T transactionally(
