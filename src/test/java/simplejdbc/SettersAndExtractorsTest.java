@@ -25,12 +25,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
-class SettersAndExtractorsTest {
-
-  @Container
-  private final PostgreSQLContainer<?> postgreSQLContainer =
-      new PostgreSQLContainer<>(PostgreSQLContainer.IMAGE);
+class SettersAndExtractorsTest extends DatabaseContainerTest {
 
   private DataSource dataSource;
   private ParameterSetters parameterSetters;
@@ -38,7 +33,7 @@ class SettersAndExtractorsTest {
 
   @BeforeEach
   void setUp() {
-    dataSource = getDataSource(postgreSQLContainer);
+    dataSource = getDataSource();
     parameterSetters = ParameterSetters.defaults();
     columnExtractors = ColumnExtractors.defaults();
   }
@@ -94,14 +89,5 @@ class SettersAndExtractorsTest {
         return columnExtractors.getExtractor(type).extract(rs, "thing");
       }
     }
-  }
-
-  protected DataSource getDataSource(JdbcDatabaseContainer<?> container) {
-    HikariConfig hikariConfig = new HikariConfig();
-    hikariConfig.setJdbcUrl(container.getJdbcUrl());
-    hikariConfig.setUsername(container.getUsername());
-    hikariConfig.setPassword(container.getPassword());
-    hikariConfig.setDriverClassName(container.getDriverClassName());
-    return new HikariDataSource(hikariConfig);
   }
 }
