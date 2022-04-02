@@ -71,8 +71,14 @@ public abstract class SimpleJdbc {
    * the operation throws an exception, or a COMMIT if successful
    *
    * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
+   * @deprecated There is no need for the lambda to accept a SimpleJdbc instance as a param anymore
    */
+  @Deprecated
   public void transactionally(JdbcConsumer transactionalFn) {
+    transactionally(() -> transactionalFn.accept(this));
+  }
+
+  public void transactionally(SqlRunnable transactionalFn) {
     transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
   }
 
@@ -84,13 +90,20 @@ public abstract class SimpleJdbc {
    *
    * @param isolationLevel TransactionIsolationLevel
    * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
+   * @deprecated There is no need for the lambda to accept a SimpleJdbc instance as a param anymore
    */
+  @Deprecated
   public void transactionally(
       TransactionIsolationLevel isolationLevel, JdbcConsumer transactionalFn) {
+    transactionally(isolationLevel, () -> transactionalFn.accept(this));
+  }
+
+  private void transactionally(
+      TransactionIsolationLevel isolationLevel, SqlRunnable transactionalFn) {
     transactionally(
         isolationLevel,
-        simpleJdbc -> {
-          transactionalFn.accept(simpleJdbc);
+        () -> {
+          transactionalFn.run();
           return null;
         });
   }
@@ -104,8 +117,14 @@ public abstract class SimpleJdbc {
    * @param <T> type of value returned by invoking `transactionalFn`
    * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
    * @return value returned by invoking `transactionalFn`
+   * @deprecated There is no need for the lambda to accept a SimpleJdbc instance as a param anymore
    */
+  @Deprecated
   public <T> T transactionally(JdbcFunction<T> transactionalFn) {
+    return transactionally(() -> transactionalFn.apply(this));
+  }
+
+  public <T> T transactionally(SqlSupplier<T> transactionalFn) {
     return transactionally(TransactionIsolationLevel.getDefault(), transactionalFn);
   }
 
@@ -119,13 +138,28 @@ public abstract class SimpleJdbc {
    * @param isolationLevel TransactionIsolationLevel
    * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
    * @return value returned by invoking `transactionalFn`
+   * @deprecated There is no need for the lambda to accept a SimpleJdbc instance as a param anymore
    */
+  @Deprecated
   public <T> T transactionally(
       TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
-    return withConnection(
-        conn ->
-            transactionally(
-                conn, isolationLevel, () -> transactionalFn.apply(SimpleJdbc.using(conn))));
+    return transactionally(isolationLevel, () -> transactionalFn.apply(this));
+  }
+
+  /**
+   * Executes the operation given by `transactionalFn` in a DB transaction, returning a result.
+   * Triggers a ROLLBACK if the operation throws an exception, or a COMMIT if successful.
+   *
+   * <p>Uses the given isolation level
+   *
+   * @param <T> type of value returned by invoking `transactionalFn`
+   * @param isolationLevel TransactionIsolationLevel
+   * @param transactionalFn Function&lt;SimpleJdbc, T&gt;
+   * @return value returned by invoking `transactionalFn`
+   */
+  private <T> T transactionally(
+      TransactionIsolationLevel isolationLevel, SqlSupplier<T> transactionalFn) {
+    return withConnection(conn -> transactionally(conn, isolationLevel, transactionalFn));
   }
 
   private <T> T transactionally(
@@ -327,6 +361,10 @@ public abstract class SimpleJdbc {
 
   public interface JdbcFunction<T> {
     T apply(SimpleJdbc jdbc) throws SQLException;
+  }
+
+  public interface SqlRunnable {
+    void run() throws SQLException;
   }
 
   public interface SqlSupplier<T> {
