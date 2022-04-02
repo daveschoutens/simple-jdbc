@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import simplejdbc.SimpleJdbc.JdbcConsumer;
 
 public class TransactionsTest extends DatabaseContainerTest {
 
@@ -19,7 +20,7 @@ public class TransactionsTest extends DatabaseContainerTest {
   @Test
   void tempTables_work() {
     String result =
-        jdbc.transactAndGet(
+        jdbc.transactionally(
             tx -> {
               jdbc.statement("create temp table foo (id varchar) on commit drop").execute();
               jdbc.insert().into("foo").set("id", "abc").execute();
@@ -32,7 +33,7 @@ public class TransactionsTest extends DatabaseContainerTest {
   void success_commits() {
     jdbc.insert().into("some_table").set("col_a", 123).set("col_b", "original_value").execute();
 
-    jdbc.transact(
+    jdbc.transactionally(
         tx -> {
           jdbc.update()
               .table("some_table")
@@ -54,16 +55,17 @@ public class TransactionsTest extends DatabaseContainerTest {
     jdbc.insert().into("some_table").set("col_a", 123).set("col_b", "original_value").execute();
 
     try {
-      jdbc.transact(
-          tx -> {
-            jdbc.update()
-                .table("some_table")
-                .set("col_b", "different_value")
-                .where("col_a = :val")
-                .bind("val", 123)
-                .execute();
-            throw new RuntimeException("blah");
-          });
+      jdbc.transactionally(
+          (JdbcConsumer)
+              tx -> {
+                jdbc.update()
+                    .table("some_table")
+                    .set("col_b", "different_value")
+                    .where("col_a = :val")
+                    .bind("val", 123)
+                    .execute();
+                throw new RuntimeException("blah");
+              });
     } catch (Exception ignored) {
     }
 

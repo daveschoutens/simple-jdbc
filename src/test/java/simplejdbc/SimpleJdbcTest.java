@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import simplejdbc.SimpleJdbc.JdbcConsumer;
+import simplejdbc.SimpleJdbc.JdbcFunction;
 import simplejdbc.SimpleJdbc.QueryResultExtractor;
 
 abstract class SimpleJdbcTest {
@@ -473,7 +475,7 @@ abstract class SimpleJdbcTest {
 
     @Test
     void doTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
-      getSubject().transact(jdbc -> {});
+      getSubject().transactionally(jdbc -> {});
       connection.setTransactionIsolation(Connection.TRANSACTION_NONE);
 
       verify(connection).setAutoCommit(false);
@@ -487,10 +489,11 @@ abstract class SimpleJdbcTest {
           RuntimeException.class,
           () ->
               getSubject()
-                  .transact(
-                      jdbc -> {
-                        throw new RuntimeException("test");
-                      }));
+                  .transactionally(
+                      (JdbcConsumer)
+                          jdbc -> {
+                            throw new RuntimeException("test");
+                          }));
 
       verify(connection).setAutoCommit(false);
       verify(connection).rollback();
@@ -504,10 +507,11 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transact(
-                          jdbc -> {
-                            throw new RuntimeException("test");
-                          }));
+                      .transactionally(
+                          (JdbcConsumer)
+                              jdbc -> {
+                                throw new RuntimeException("test");
+                              }));
       assertThat(ex).hasCauseThat().isNull();
       assertThat(ex).hasMessageThat().isEqualTo("test");
     }
@@ -519,10 +523,11 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transact(
-                          jdbc -> {
-                            throw new SQLException("test");
-                          }));
+                      .transactionally(
+                          (JdbcConsumer)
+                              jdbc -> {
+                                throw new SQLException("test");
+                              }));
       assertThat(ex).isNotInstanceOf(SQLException.class);
       assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
       assertThat(ex).hasMessageThat().contains("test");
@@ -530,7 +535,7 @@ abstract class SimpleJdbcTest {
 
     @Test
     void getTransactionally_commitsTransaction_andResetsAutoCommit() throws SQLException {
-      String result = getSubject().transactAndGet(jdbc -> "result");
+      String result = getSubject().transactionally(jdbc -> "result");
 
       assertThat(result).isEqualTo("result");
       verify(connection).setAutoCommit(false);
@@ -544,10 +549,11 @@ abstract class SimpleJdbcTest {
           RuntimeException.class,
           () ->
               getSubject()
-                  .transactAndGet(
-                      jdbc -> {
-                        throw new RuntimeException("test");
-                      }));
+                  .transactionally(
+                      (JdbcFunction<Object>)
+                          jdbc -> {
+                            throw new RuntimeException("test");
+                          }));
 
       verify(connection).setAutoCommit(false);
       verify(connection).rollback();
@@ -561,10 +567,11 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transactAndGet(
-                          jdbc -> {
-                            throw new RuntimeException("test");
-                          }));
+                      .transactionally(
+                          (JdbcFunction<Object>)
+                              jdbc -> {
+                                throw new RuntimeException("test");
+                              }));
       assertThat(ex).hasCauseThat().isNull();
       assertThat(ex).hasMessageThat().isEqualTo("test");
     }
@@ -576,10 +583,11 @@ abstract class SimpleJdbcTest {
               RuntimeException.class,
               () ->
                   getSubject()
-                      .transactAndGet(
-                          jdbc -> {
-                            throw new SQLException("test");
-                          }));
+                      .transactionally(
+                          (JdbcFunction<Object>)
+                              jdbc -> {
+                                throw new SQLException("test");
+                              }));
       assertThat(ex).isNotInstanceOf(SQLException.class);
       assertThat(ex).hasCauseThat().isInstanceOf(SQLException.class);
       assertThat(ex).hasMessageThat().contains("test");
