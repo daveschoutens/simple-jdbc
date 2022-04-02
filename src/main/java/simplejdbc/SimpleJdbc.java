@@ -7,7 +7,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import simplejdbc.InsertBuilder.BatchInsert;
@@ -168,17 +167,20 @@ public abstract class SimpleJdbc {
    */
   public <T> T transactAndGet(
       TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
-    return withConnection(conn -> transactionally(conn, isolationLevel, transactionalFn));
+    return withConnection(
+        conn ->
+            transactionally(
+                conn, isolationLevel, () -> transactionalFn.apply(SimpleJdbc.using(conn))));
   }
 
   private <T> T transactionally(
-      Connection conn, TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
+      Connection conn, TransactionIsolationLevel isolationLevel, SqlSupplier<T> transactionalFn) {
     try {
       conn.setTransactionIsolation(isolationLevel.getMagicConstantValue());
       boolean autoCommit = conn.getAutoCommit();
       conn.setAutoCommit(false);
       try {
-        T result = transactionalFn.apply(SimpleJdbc.using(conn));
+        T result = transactionalFn.get();
         conn.commit();
         return result;
       } catch (Throwable ex) {
@@ -249,10 +251,16 @@ public abstract class SimpleJdbc {
 
     @Override
     <T> T withConnection(Function<Connection, T> fn) {
+      if (connectionThreadLocal.get() != null) {
+        return fn.apply(connectionThreadLocal.get());
+      }
       try (Connection conn = dataSource.getConnection()) {
+        connectionThreadLocal.set(conn);
         return fn.apply(conn);
       } catch (SQLException ex) {
         throw new SimpleJdbcException(ex);
+      } finally {
+        connectionThreadLocal.set(null);
       }
     }
   }
@@ -364,5 +372,9 @@ public abstract class SimpleJdbc {
 
   public interface JdbcFunction<T> {
     T apply(SimpleJdbc jdbc) throws SQLException;
+  }
+
+  public interface SqlSupplier<T> {
+    T get() throws SQLException;
   }
 }

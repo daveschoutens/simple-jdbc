@@ -21,9 +21,9 @@ public class TransactionsTest extends DatabaseContainerTest {
     String result =
         jdbc.transactAndGet(
             tx -> {
-              tx.statement("create temp table foo (id varchar) on commit drop").execute();
-              tx.insert().into("foo").set("id", "abc").execute();
-              return tx.query("select id from foo").selectExactlyOne(rs -> rs.getString("id"));
+              jdbc.statement("create temp table foo (id varchar) on commit drop").execute();
+              jdbc.insert().into("foo").set("id", "abc").execute();
+              return jdbc.query("select id from foo").selectExactlyOne(rs -> rs.getString("id"));
             });
     assertThat(result).isEqualTo("abc");
   }
@@ -34,7 +34,7 @@ public class TransactionsTest extends DatabaseContainerTest {
 
     jdbc.transact(
         tx -> {
-          tx.update()
+          jdbc.update()
               .table("some_table")
               .set("col_b", "different_value")
               .where("col_a = :val")
@@ -56,7 +56,7 @@ public class TransactionsTest extends DatabaseContainerTest {
     try {
       jdbc.transact(
           tx -> {
-            tx.update()
+            jdbc.update()
                 .table("some_table")
                 .set("col_b", "different_value")
                 .where("col_a = :val")
