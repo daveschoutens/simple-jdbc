@@ -77,8 +77,8 @@ public abstract class SimpleJdbc {
   }
 
   /**
-   * Executes the operation given by `transactionalFn` in a DB transaction, triggering a ROLLBACK
-   * if the operation throws an exception, or a COMMIT if successful
+   * Executes the operation given by `transactionalFn` in a DB transaction, triggering a ROLLBACK if
+   * the operation throws an exception, or a COMMIT if successful
    *
    * @param transactionalFn Consumer&lt;SimpleJdbc&gt;
    */
@@ -98,8 +98,8 @@ public abstract class SimpleJdbc {
   }
 
   /**
-   * Executes the operation given by `transactionalFn` in a DB transaction, triggering a ROLLBACK
-   * if the operation throws an exception, or a COMMIT if successful
+   * Executes the operation given by `transactionalFn` in a DB transaction, triggering a ROLLBACK if
+   * the operation throws an exception, or a COMMIT if successful
    *
    * <p>Uses the given isolation level
    *
@@ -150,7 +150,7 @@ public abstract class SimpleJdbc {
    */
   @Deprecated
   public <T> T transactionally(
-          TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
+      TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
     return transactAndGet(isolationLevel, transactionalFn);
   }
 
@@ -166,7 +166,8 @@ public abstract class SimpleJdbc {
    * @return value returned by invoking `transactionalFn`
    * @deprecated Use `transactAndGet(isolationLevel, fn)` instead
    */
-  public <T> T transactAndGet(TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
+  public <T> T transactAndGet(
+      TransactionIsolationLevel isolationLevel, JdbcFunction<T> transactionalFn) {
     return withConnection(conn -> transactionally(conn, isolationLevel, transactionalFn));
   }
 

@@ -20,7 +20,8 @@ public class QueryResultExtractors {
     };
   }
 
-  public static <T> QueryResultExtractor<Optional<T>> first(QueryRowResultExtractor<T> rowExtractor) {
+  public static <T> QueryResultExtractor<Optional<T>> first(
+      QueryRowResultExtractor<T> rowExtractor) {
     return queryResult -> {
       if (queryResult.next()) {
         return Optional.of(rowExtractor.extract(queryResult));

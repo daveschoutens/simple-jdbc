@@ -109,8 +109,7 @@ class QueryResultTest {
             (BiFunction<QueryResult, String, ?>) (qr, s) -> qr.opt().getBigDecimal(s),
             BigDecimal.class),
         Arguments.of(
-            (BiFunction<QueryResult, String, ?>) (qr, s) -> qr.opt().getString(s),
-            String.class),
+            (BiFunction<QueryResult, String, ?>) (qr, s) -> qr.opt().getString(s), String.class),
         Arguments.of(
             (BiFunction<QueryResult, String, ?>) (qr, s) -> qr.opt().getInstant(s), Instant.class),
         Arguments.of(
